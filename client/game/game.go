@@ -180,7 +180,7 @@ func (g *Game) castAbility(playerIndex int, abilityIndex int, mousePos rl.Vector
 
 	switch a.AbilityType {
 	case _castSingleProjectile:
-		g.spawnProjectile(p.Walker.Pos, mousePos, a.Color, a.Radius, a.Speed, a.Range, a.Damage)
+		g.spawnProjectile(playerIndex, p.Walker.Pos, mousePos, a.Color, a.Radius, a.Speed, a.Range, a.Damage)
 
 	case _castThreeProjectiles:
 		color := rl.Green
@@ -191,13 +191,13 @@ func (g *Game) castAbility(playerIndex int, abilityIndex int, mousePos rl.Vector
 
 		var angle float32 = math.Pi / 4
 
-		g.spawnProjectile(p.Walker.Pos, mousePos, color, radius, speed, rrange, damage)
+		g.spawnProjectile(playerIndex, p.Walker.Pos, mousePos, color, radius, speed, rrange, damage)
 
 		leftProjectileDir := rl.Vector2Rotate(rl.Vector2Subtract(mousePos, p.Pos), angle)
-		g.spawnProjectile(p.Walker.Pos, rl.Vector2Add(p.Pos, leftProjectileDir), color, radius, speed, rrange, damage)
+		g.spawnProjectile(playerIndex, p.Walker.Pos, rl.Vector2Add(p.Pos, leftProjectileDir), color, radius, speed, rrange, damage)
 
 		rightProjectileDir := rl.Vector2Rotate(rl.Vector2Subtract(mousePos, p.Pos), -angle)
-		g.spawnProjectile(p.Walker.Pos, rl.Vector2Add(p.Pos, rightProjectileDir), color, radius, speed, rrange, damage)
+		g.spawnProjectile(playerIndex, p.Walker.Pos, rl.Vector2Add(p.Pos, rightProjectileDir), color, radius, speed, rrange, damage)
 
 	case _teleport:
 		g.Players[playerIndex].Pos = rl.Vector2MoveTowards(g.Players[playerIndex].Pos, mousePos, a.Range)
@@ -229,7 +229,7 @@ func (game *Game) handleProjectileCollisions() {
 	}
 }
 
-func (game *Game) spawnProjectile(position rl.Vector2, destination rl.Vector2, color rl.Color, radius float32, speed float32, projectileRange float32, damage float32) {
+func (game *Game) spawnProjectile(playerIndex int, position rl.Vector2, destination rl.Vector2, color rl.Color, radius float32, speed float32, projectileRange float32, damage float32) {
 	finalDestination := rl.Vector2Add(rl.Vector2Scale(rl.Vector2Normalize(rl.Vector2Subtract(destination, position)), float32(projectileRange)), position)
 
 	game.Projectiles = append(game.Projectiles,
@@ -240,7 +240,7 @@ func (game *Game) spawnProjectile(position rl.Vector2, destination rl.Vector2, c
 			Color:  color,
 			Damage: damage,
 			Range:  projectileRange,
-			TeamID: game.Players[0].TeamID, // TODO remove hammer
+			TeamID: game.Players[playerIndex].TeamID,
 		},
 	)
 }

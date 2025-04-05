@@ -6,6 +6,8 @@ type Player struct {
 	Walker
 	Active bool
 
+	Abilities []Ability
+
 	TeamID    int
 	Health    float32
 	MaxHealth float32

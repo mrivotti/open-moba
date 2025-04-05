@@ -1,25 +1,78 @@
 package game
 
 import (
+	"errors"
 	"math"
 	"math/rand"
+	"time"
 
 	rl "github.com/gen2brain/raylib-go/raylib"
 )
 
-const maxProjectiles = 100
 const collisionMargin = 5
 
 type Game struct {
-	Players            []Player
-	Projectiles        []Projectile
-	CurrentProjectiles int
+	Players     []Player
+	Projectiles []Projectile
+	PlayerIndex int
 }
 
-func NewGame(nPlayers int) *Game {
+func NewGame(nPlayers int, playerIndex int) (*Game, error) {
+	if playerIndex >= nPlayers || playerIndex < 0 {
+		return nil, errors.New("invalid player index")
+	}
+
+	abilities := []Ability{
+		{
+			AbilityType:             _castSingleProjectile,
+			Color:                   rl.Red,
+			CastPositionType:        _playerPosition,
+			DestinationPositionType: _mousePosition,
+			Radius:                  15,
+			Speed:                   500,
+			Range:                   300,
+			Damage:                  5,
+			Cooldown:                time.Second * 3,
+		},
+		{
+			AbilityType:             _castSingleProjectile,
+			Color:                   rl.Orange,
+			CastPositionType:        _playerPosition,
+			DestinationPositionType: _mousePosition,
+			Radius:                  50,
+			Speed:                   100,
+			Range:                   500,
+			Damage:                  30,
+			Cooldown:                time.Second * 10,
+		},
+		{
+			AbilityType:             _castThreeProjectiles,
+			Color:                   rl.Green,
+			CastPositionType:        _playerPosition,
+			DestinationPositionType: _mousePosition,
+			Radius:                  10,
+			Speed:                   700,
+			Range:                   150,
+			Damage:                  5,
+			Cooldown:                time.Second * 4,
+		},
+		{
+			AbilityType:             _teleport,
+			Color:                   rl.Black,
+			CastPositionType:        _playerPosition,
+			DestinationPositionType: _mousePosition,
+			Radius:                  0,
+			Speed:                   0,
+			Range:                   150,
+			Damage:                  0,
+			Cooldown:                time.Second * 3,
+		},
+	}
+
 	players := make([]Player, nPlayers)
 	players[0] = Player{
 		Walker:    Walker{Pos: rl.Vector2{X: 100, Y: 100}, Speed: 100},
+		Abilities: abilities,
 		Radius:    20,
 		Active:    true,
 		Color:     rl.Blue,
@@ -27,6 +80,7 @@ func NewGame(nPlayers int) *Game {
 		Health:    100,
 		MaxHealth: 100,
 	}
+
 	for i := 1; i < nPlayers; i++ {
 		x := rand.Float32() * 1000
 		y := rand.Float32() * 600
@@ -42,12 +96,11 @@ func NewGame(nPlayers int) *Game {
 		}
 	}
 
-	projectiles := make([]Projectile, 0, 100)
-
 	return &Game{
 		Players:     players,
-		Projectiles: projectiles,
-	}
+		Projectiles: make([]Projectile, 0, 100),
+		PlayerIndex: playerIndex,
+	}, nil
 }
 
 func (g *Game) HandleInput() {
@@ -58,27 +111,16 @@ func (g *Game) HandleInput() {
 	}
 
 	if rl.IsKeyPressed(rl.KeyQ) {
-		g.spawnProjectile(g.Players[0].Walker.Pos, mousePos, rl.Red, 15, 500, 5, 300)
+		g.castAbility(0, 0, mousePos)
 	}
 	if rl.IsKeyPressed(rl.KeyW) {
-		g.spawnProjectile(g.Players[0].Walker.Pos, mousePos, rl.Orange, 50, 100, 30, 500)
+		g.castAbility(0, 1, mousePos)
 	}
-
 	if rl.IsKeyPressed(rl.KeyE) {
-		var radius float32 = 7.0
-		var speed float32 = 700
-		var damage float32 = 5.0
-		var projectileRange float32 = 150.0
-		color := rl.Green
-		var angle float32 = math.Pi / 4
-
-		g.spawnProjectile(g.Players[0].Walker.Pos, mousePos, color, radius, speed, damage, projectileRange)
-
-		leftProjectileDir := rl.Vector2Rotate(rl.Vector2Subtract(mousePos, g.Players[0].Walker.Pos), angle)
-		g.spawnProjectile(g.Players[0].Walker.Pos, rl.Vector2Add(g.Players[0].Walker.Pos, leftProjectileDir), color, radius, speed, damage, projectileRange)
-
-		rightProjectileDir := rl.Vector2Rotate(rl.Vector2Subtract(mousePos, g.Players[0].Walker.Pos), -angle)
-		g.spawnProjectile(g.Players[0].Walker.Pos, rl.Vector2Add(g.Players[0].Walker.Pos, rightProjectileDir), color, radius, speed, damage, projectileRange)
+		g.castAbility(0, 2, mousePos)
+	}
+	if rl.IsKeyPressed(rl.KeyR) {
+		g.castAbility(0, 3, mousePos)
 	}
 
 }
@@ -116,6 +158,52 @@ func (g *Game) UpdateState() {
 	g.removeInactiveProjectiles()
 }
 
+func (g *Game) castAbility(playerIndex int, abilityIndex int, mousePos rl.Vector2) {
+	if playerIndex > len(g.Players) || playerIndex < 0 {
+		return
+	}
+	p := &g.Players[playerIndex]
+
+	if abilityIndex > len(p.Abilities) || abilityIndex < 0 {
+		return
+	}
+	a := &p.Abilities[abilityIndex]
+
+	now := time.Now()
+
+	if a.CastedAt.Add(a.Cooldown).After(now) {
+		return
+	}
+
+	switch a.AbilityType {
+	case _castSingleProjectile:
+		g.spawnProjectile(p.Walker.Pos, mousePos, a.Color, a.Radius, a.Speed, a.Range, a.Damage)
+
+	case _castThreeProjectiles:
+		color := rl.Green
+		radius := a.Radius
+		speed := a.Speed
+		rrange := a.Range
+		damage := a.Damage
+
+		var angle float32 = math.Pi / 4
+
+		g.spawnProjectile(p.Walker.Pos, mousePos, color, radius, speed, rrange, damage)
+
+		leftProjectileDir := rl.Vector2Rotate(rl.Vector2Subtract(mousePos, p.Pos), angle)
+		g.spawnProjectile(p.Walker.Pos, rl.Vector2Add(p.Pos, leftProjectileDir), color, radius, speed, rrange, damage)
+
+		rightProjectileDir := rl.Vector2Rotate(rl.Vector2Subtract(mousePos, p.Pos), -angle)
+		g.spawnProjectile(p.Walker.Pos, rl.Vector2Add(p.Pos, rightProjectileDir), color, radius, speed, rrange, damage)
+
+	case _teleport:
+		g.Players[g.PlayerIndex].Pos = rl.Vector2MoveTowards(g.Players[g.PlayerIndex].Pos, mousePos, a.Range)
+		g.Players[g.PlayerIndex].Walking = false
+	}
+
+	a.CastedAt = now
+}
+
 func (game *Game) handleProjectileCollisions() {
 	for i := range game.Players {
 		if !game.Players[i].Active {
@@ -138,11 +226,7 @@ func (game *Game) handleProjectileCollisions() {
 	}
 }
 
-func (game *Game) spawnProjectile(position rl.Vector2, destination rl.Vector2, color rl.Color, radius float32, speed float32, damage float32, projectileRange float32) {
-	if game.CurrentProjectiles >= maxProjectiles {
-		game.CurrentProjectiles = 0
-	}
-
+func (game *Game) spawnProjectile(position rl.Vector2, destination rl.Vector2, color rl.Color, radius float32, speed float32, projectileRange float32, damage float32) {
 	finalDestination := rl.Vector2Add(rl.Vector2Scale(rl.Vector2Normalize(rl.Vector2Subtract(destination, position)), float32(projectileRange)), position)
 
 	game.Projectiles = append(game.Projectiles,

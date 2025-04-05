@@ -8,12 +8,20 @@ import (
 )
 
 func main() {
-	rl.InitWindow(1200, 700, "Open Moba")
+	var screenWidth int32 = 1200
+	var screenHeight int32 = 700
+
+	rl.InitWindow(screenWidth, screenHeight, "Open Moba")
 	defer rl.CloseWindow()
 
 	rl.SetTargetFPS(120)
 
-	game := game.NewGame(8)
+	renderer := renderer.NewRenderer(screenWidth, screenHeight)
+
+	game, err := game.NewGame(8, 0)
+	if err != nil {
+		panic(err)
+	}
 
 	for !rl.WindowShouldClose() {
 		// Update State
@@ -26,7 +34,9 @@ func main() {
 
 		rl.ClearBackground(rl.RayWhite)
 
+		renderer.DrawBackground()
 		renderer.DrawGame(game)
+		renderer.DrawHUD(game)
 
 		rl.EndDrawing()
 	}

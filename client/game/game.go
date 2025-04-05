@@ -70,7 +70,7 @@ func NewGame(nPlayers int, playerIndex int) (*Game, error) {
 	}
 
 	players := make([]Player, nPlayers)
-	players[0] = Player{
+	players[playerIndex] = Player{
 		Walker:    Walker{Pos: rl.Vector2{X: 100, Y: 100}, Speed: 100},
 		Abilities: abilities,
 		Radius:    20,
@@ -81,7 +81,10 @@ func NewGame(nPlayers int, playerIndex int) (*Game, error) {
 		MaxHealth: 100,
 	}
 
-	for i := 1; i < nPlayers; i++ {
+	for i := 0; i < nPlayers; i++ {
+		if i == playerIndex {
+			continue
+		}
 		x := rand.Float32() * 1000
 		y := rand.Float32() * 600
 
@@ -111,16 +114,16 @@ func (g *Game) HandleInput() {
 	}
 
 	if rl.IsKeyPressed(rl.KeyQ) {
-		g.castAbility(0, 0, mousePos)
+		g.castAbility(g.PlayerIndex, 0, mousePos)
 	}
 	if rl.IsKeyPressed(rl.KeyW) {
-		g.castAbility(0, 1, mousePos)
+		g.castAbility(g.PlayerIndex, 1, mousePos)
 	}
 	if rl.IsKeyPressed(rl.KeyE) {
-		g.castAbility(0, 2, mousePos)
+		g.castAbility(g.PlayerIndex, 2, mousePos)
 	}
 	if rl.IsKeyPressed(rl.KeyR) {
-		g.castAbility(0, 3, mousePos)
+		g.castAbility(g.PlayerIndex, 3, mousePos)
 	}
 
 }
@@ -197,8 +200,8 @@ func (g *Game) castAbility(playerIndex int, abilityIndex int, mousePos rl.Vector
 		g.spawnProjectile(p.Walker.Pos, rl.Vector2Add(p.Pos, rightProjectileDir), color, radius, speed, rrange, damage)
 
 	case _teleport:
-		g.Players[g.PlayerIndex].Pos = rl.Vector2MoveTowards(g.Players[g.PlayerIndex].Pos, mousePos, a.Range)
-		g.Players[g.PlayerIndex].Walking = false
+		g.Players[playerIndex].Pos = rl.Vector2MoveTowards(g.Players[playerIndex].Pos, mousePos, a.Range)
+		g.Players[playerIndex].Walking = false
 	}
 
 	a.CastedAt = now
